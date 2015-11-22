@@ -20,9 +20,9 @@ String numtrd=request.getParameter("numtrd");
 String vwretd=request.getParameter("vwretd");
 
 final class Stockdata1 {
-
-	public String dt;
 	public String ticker;
+	
+	public String dt;
 	public String bidlo;
 	public String askhi;
 	public String prc;
@@ -33,6 +33,43 @@ final class Stockdata1 {
 	public String openprc;
 	public String numtrd;
 	public String vwretd;
+	
+	public String get(String attribute){
+        if(attribute.equals("dt")){
+       		return dt;
+        }
+        if(attribute.equals("bidlo")){
+       		return bidlo;
+        }
+        if(attribute.equals("askhi")){
+       		return askhi;
+        }
+        if(attribute.equals("prc")){
+       		return prc;
+        }
+        if(attribute.equals("vol")){
+       		return vol;
+        }
+        if(attribute.equals("bid")){
+       		return bid;
+        }
+        if(attribute.equals("ask")){
+       		return ask;
+        }
+        if(attribute.equals("shrout")){
+       		return shrout;
+        }
+        if(attribute.equals("openprc")){
+       		return openprc;
+        }
+        if(attribute.equals("numtrd")){
+       		return numtrd;
+        }
+        if(attribute.equals("vwretd")){
+       		return vwretd;
+        }
+        return "";
+	}
 
 	public String getDt() {
 		return dt;
@@ -109,97 +146,141 @@ final class Stockdata1 {
 }
 
 final class Similar {
-
-	public  Float BildoForGiven;
-
+	
 	public   Connection connection ;
 	public   Statement statement;
 	
-	public List<Stockdata1> main(String ticker, String date, int number) {
+	//Mode 0 = harmonic mean Mode 1 = runing average 2 = least squares
+	public Map<String, List<Stockdata1>> main(String ticker, String date, int number, List<String> attributes, int mode) {
 
-		List<Stockdata1> givenStockList = getBydate(ticker, date, number);
+		Map<String, List<Stockdata1>> finalresult = new HashMap<String,List<Stockdata1>>();
+		//THE FIRST SHOULD BE PARAMETRIZED WITH THE GIVEN PARAMS FROM THE FRONT_END
+		List<Stockdata1> givenStockList = getBydate("MRK", "19960603", number);
+		//Map to hold measure for chosen company
+		Map<String, Float> measureForAttribute = new HashMap<String, Float>();
+		for(String attribute : attributes){
+			measureForAttribute.put(attribute, getForAttribute(givenStockList,attribute,mode,givenStockList));
+		}
 
-		List<Stockdata1> stockListKO = getByCompany("KO");
+		//replace with something generic later
+		List<String> companies = new LinkedList<String>();
+		companies.add("PFE");
+		companies.add("MMM");
+		companies.add("MRK");
+		companies.add("DIS");
+		companies.add("MCD");
+		companies.add("JPM");
+		companies.add("NKE");
+		companies.add("WMT");
+		companies.add("MSFT");
+		companies.add("AXP");
+		companies.add("INTC");
+		companies.add("TRV");
+		companies.add("VZ");
+		companies.add("KO");
+		companies.add("DD");
+		companies.add("XOM");
+		companies.add("GE");
+		companies.add("IBM");
+		companies.add("CVS");
+		companies.add("AAPL");
+		companies.add("UTX");
+		companies.add("PG");
+		companies.add("CAT");
+		companies.add("BA");
+		companies.add("JNJ");
+		
+		for (String company : companies){
+			finalresult.put(company, getResultsForCompany(company, number, attributes, measureForAttribute, givenStockList, mode));
+		}
 
-		BildoForGiven = getHForBildo(givenStockList);
-
-		return findSimalarity(stockListKO, number);
+		return finalresult;
 	}
+	
+	
+	public List<Stockdata1> getResultsForCompany(String company, int counter, List<String> attributes, Map<String, Float> measureForAttribute, List<Stockdata1> givenStockList, int mode) {
 
-	public List<Stockdata1> findSimalarity(List<Stockdata1> list, int counter) {
+		List<Stockdata1> stockList = getByCompany(company);
+		HashMap<String, List<Stockdata1>> attributeMap = new HashMap<String, List<Stockdata1>>();
 		Float averageOfMiniList;
+		
+		//Find similar parts
 		List<Stockdata1> miniList = new ArrayList<Stockdata1>();
-
-		for (int i = 0; i < list.size(); i= i+counter) {
-			miniList = list.subList(i, i+counter);
-			averageOfMiniList = getHForBildo(miniList);
-
-			if (isSimilar(BildoForGiven, averageOfMiniList )) {
+		for (int i = 0; i < stockList.size()-counter; i++) {
+			miniList = stockList.subList(i, i+counter);
+			int countOfSimilar = attributes.size();
+			
+			for(String attribute : attributes){
+				if(mode == 2) {
+					float dif = 0;
+					float sum =0;
+					int index=0;
+					for(Stockdata1 entry : miniList){
+						float reference = new Float(givenStockList.get(index).get(attribute));
+						index++;
+						sum+=reference;
+						dif+= Math.sqrt(Math.pow(new Float(entry.get(attribute))-reference,2));
+					}
+					if(dif<100){
+						System.out.println(dif);
+						countOfSimilar--;
+					}
+					
+				} else {
+					averageOfMiniList = getForAttribute(miniList, attribute, mode, givenStockList);
+					if (isSimilar(measureForAttribute.get(attribute), averageOfMiniList )) {
+						countOfSimilar--;
+					}
+				}
+			}
+			
+			if(countOfSimilar == 0){
 				return miniList;
 			}
 		}
-
+		
 		return null;
 	}
 
-	// avg1 is the supreme one.
+	public boolean isZero(float value){
+	    return value >= -0.02 && value <= 0.02;
+	}
+	
+
 	public boolean isSimilar(Float avg1, Float avg2 ) {
-		float percent = (avg1 * 100.0f) / 10;
-
-		return (avg1< avg2+percent || avg1>avg2-percent);
+		if(avg1==null || avg2 == null) {
+			return false;
+		}
+		
+		float percent = (avg1) / 100;
+		return (avg1< avg2+percent && avg1>avg2-percent);
+	}	
+	
+	
+	public float getForAttribute(List<Stockdata1> stockList, String attribute, int mode, List<Stockdata1> givenStockList) {
+		if (mode == 0){
+			return getHarmonicMeanForAttribute(stockList, attribute);
+		}
+		
+		if (mode == 1){
+			return getWeightedMovingAverageForAttribute(stockList, attribute);
+		}
+		
+		if(mode == 2){
+			
+		}
+		
+		return 0;
 	}
-
-	public Float getHForBildo(List<Stockdata1> stockList) {
+	
+	//Returns the harmonic mean for an attribute of the list
+	public float getHarmonicMeanForAttribute(List<Stockdata1> stockList, String attribute) {
 		Double sum = new Double(0);
-
 		for (Stockdata1 stock : stockList) {
-			if (stock.getBidlo() != null && !stock.getBidlo().equals("0")){
-				sum = sum + (new Double(1.0 / new BigDecimal(stock.getBidlo()).floatValue()));
-			}
-		}
+			String clean = stock.get(attribute).replaceAll("\\s", "").replace(',', '.');
 
-		if (sum == 0) {
-			return (float) 0;
-		}
-		return stockList.size() / sum.floatValue();
-	}
-	public float getHForAskhi(List<Stockdata1> stockList) {
-		Double sum = new Double(0);
-
-		for (Stockdata1 stock : stockList) {
-			if (stock.getBidlo() != null && !stock.getBidlo().equals("0")){
-				sum = sum + (new Double(1.0 / new BigDecimal(stock.getAskhi()).floatValue()));
-			}
-		}
-
-		if (sum == 0) {
-			return 0;
-		}
-		return stockList.size() / sum.floatValue();
-	}
-
-	public float getHForPrc(List<Stockdata1> stockList) {
-		Double sum = new Double(0);
-
-		for (Stockdata1 stock : stockList) {
-			if (stock.getBidlo() != null && !stock.getBidlo().equals("0")){
-				sum = sum + (new Double(1.0 / new BigDecimal(stock.getPrc()).floatValue()));
-			}
-		}
-
-
-		if (sum == 0) {
-			return 0;
-		}
-		return stockList.size() / sum.floatValue();
-	}
-
-	public float getHForVol(List<Stockdata1> stockList) {
-		Double sum = new Double(0);
-
-		for (Stockdata1 stock : stockList) {
-			if (stock.getBidlo() != null && !stock.getBidlo().equals("0")){
-				sum = sum + (new Double(1.0 / new BigDecimal(stock.getVol()).floatValue()));
+			if (stock.getShrout() != null && !isZero(new BigDecimal(clean).floatValue())){
+				sum = sum + (new Double(1.0 / new BigDecimal(clean).floatValue()));
 			}
 		}
 
@@ -208,99 +289,25 @@ final class Similar {
 		}
 		return stockList.size() / sum.floatValue();
 	}
-
-	public float getHForBid(List<Stockdata1> stockList) {
-		Double sum = new Double(0);
-
+	
+	
+	public float getWeightedMovingAverageForAttribute(List<Stockdata1> stockList, String attribute) {
+		float sum = 0;
+		int counter = stockList.size();
+		int div = (counter +1)*counter/2;
 		for (Stockdata1 stock : stockList) {
-			if (stock.getBidlo() != null && !stock.getBidlo().equals("0")){
-				sum = sum + (new Double(1.0 / new BigDecimal(stock.getBid()).floatValue()));
-			}
+			sum+=new Float(stock.get(attribute))*counter;
+			counter--;
 		}
-
-		if (sum == 0) {
+		
+		if(!isZero(div)) {
+			return sum/div;
+		} else {
 			return 0;
 		}
-		return stockList.size() / sum.floatValue();
 	}
-
-	public float getHForAsk(List<Stockdata1> stockList) {
-		Double sum = new Double(0);
-
-		for (Stockdata1 stock : stockList) {
-			if (stock.getBidlo() != null && !stock.getBidlo().equals("0")){
-				sum = sum + (new Double(1.0 / new BigDecimal(stock.getAsk()).floatValue()));
-			}
-		}
-
-		if (sum == 0) {
-			return 0;
-		}
-		return stockList.size() / sum.floatValue();
-	}
-
-	public float getHForOpenrc(List<Stockdata1> stockList) {
-		Double sum = new Double(0);
-
-		for (Stockdata1 stock : stockList) {
-			if (stock.getBidlo() != null && !stock.getBidlo().equals("0")){
-				sum = sum + (new Double(1.0 / new BigDecimal(stock.getOpenprc()).floatValue()));
-			}
-		}
-
-		if (sum == 0) {
-			return 0;
-		}
-		return stockList.size() / sum.floatValue();
-	}
-
-	public float getHForNumtrd(List<Stockdata1> stockList) {
-		Double sum = new Double(0);
-
-		for (Stockdata1 stock : stockList) {
-			if (stock.getBidlo() != null && !stock.getBidlo().equals("0")){
-				sum = sum + (new Double(1.0 / new BigDecimal(stock.getNumtrd()).floatValue()));
-			}
-		}
-
-		if (sum == 0) {
-			return 0;
-		}
-		return stockList.size() / sum.floatValue();
-	}
-
-	public float getHForVwretd(List<Stockdata1> stockList) {
-		Double sum = new Double(0);
-
-		for (Stockdata1 stock : stockList) {
-			if (stock.getBidlo() != null && !stock.getBidlo().equals("0")){
-				sum = sum + (new Double(1.0 / new BigDecimal(stock.getVwretd()).floatValue()));
-			}
-		}
-
-		if (sum == 0) {
-			return 0;
-		}
-		return stockList.size() / sum.floatValue();
-	}
-
-	public List<Stockdata1> getStockdata1(String Stockdata1Id) throws SQLException {
-		String query = "SELECT * FROM Stockdata1 WHERE dt=" + Stockdata1Id;
-		ResultSet rs = null;
-		List<Stockdata1> stock = new ArrayList<Stockdata1>();
-		try {
-			connection = createConnection();
-			statement = connection.createStatement();
-			rs = statement.executeQuery(query);
-			stock =  convertToListStockData1(rs);
-		} finally {
-			close(rs);
-			close(statement);
-			close(connection);
-		}
-		return stock;
-	}
-
+	
+	
 
 	public List<Stockdata1> getBydate(String companyName, String startingDate, int number) {
 		String query = "SELECT * FROM StockData1 WHERE ticker='" + companyName + "' AND dt> " + startingDate + " LIMIT "+number ;
@@ -365,7 +372,7 @@ final class Similar {
 				stockList.add(stock);
 			}
 		} catch (SQLException e) {
-			System.out.println("Bubu in the converter");
+			System.out.println("Error in the converter");
 			e.printStackTrace();
 		}
 
@@ -415,23 +422,46 @@ final class Similar {
 }
 
 
-
 Map<String, String> similarCompanies = new HashMap<String, String>();
-
-//Mock data
-similarCompanies.put("KO","June 2012");
-
-//CODE HERE
-
 Similar similar = new Similar();
-List<Stockdata1> stockdatas = similar.main("MSFT", "19960603", 5);
+List<String> attributes =  new LinkedList<String>();
+attributes.add("bidlo");
+// attributes.add("ask");
+Map<String,List<Stockdata1>> stockdatas = similar.main("MSFT", "19960603", 60, attributes,2);
+Map<String, String> companyDataJsons = new HashMap<String, String>();
+Set<String> companyKeys = stockdatas.keySet();
+Iterator<String> companyKeysIterator = companyKeys.iterator();
 
-String dataJson = "{\"bidlo\":[";
-for(Stockdata1 stockData : stockdatas) {
-	dataJson = dataJson + "{\"date\":\""+stockData.getDt()+"\",\"value\":\""+stockData.getBidlo()+"\"},";
+while (companyKeysIterator.hasNext()){
+	boolean similarCompany = false;
+	String companyKey = companyKeysIterator.next();
+	if(stockdatas.get(companyKey)!=null) {
+		// Check the similarity returned for each company and add date it was similar on
+		List<Stockdata1> stockDataForCompanyAttribute = stockdatas.get(companyKey);
+		if(!stockDataForCompanyAttribute.isEmpty()) {
+			String dateOfSimilarity = stockDataForCompanyAttribute.get(0).getDt();
+			similarCompanies.put(companyKey, dateOfSimilarity);
+			
+			//Format JSON containing the values required for graph creation
+			String dataJson = "{";
+			for (String attribute : attributes){
+				dataJson = dataJson +"\""+attribute+"\":[";
+					
+				for(Stockdata1 stockdata: stockDataForCompanyAttribute) {
+					dataJson = dataJson + "{\"date\":\""+stockdata.getDt()+"\",\"value\":\""+stockdata.get(attribute)+"\"},";
+				}
+				dataJson = dataJson.substring(0, dataJson.length()-1);//Remove last ,
+				dataJson = dataJson + "],";
+			}
+			dataJson = dataJson.substring(0, dataJson.length()-1);//Remove last ,
+			dataJson = dataJson + "}";
+			if(dataJson.length()>1) {
+				companyDataJsons.put(companyKey, dataJson);
+			}
+		}
+	}
 }
-dataJson = dataJson.substring(0, dataJson.length()-1);
-dataJson = dataJson + "]}";
+
 
 %>
 
@@ -466,8 +496,66 @@ dataJson = dataJson + "]}";
 		  stroke-width: 1.5px;
 		}
 		
-
+		.vol {
+		  fill: none;
+		  stroke: red;
+		  stroke-width: 1.5px;
+		}
 		
+		.askhi {
+		  fill: none;
+		  stroke: green;
+		  stroke-width: 1.5px;
+		}
+		
+		.prc {
+		  fill: none;
+		  stroke: pink;
+		  stroke-width: 1.5px;
+		}
+		
+		.openprc {
+		  fill: none;
+		  stroke: brown;
+		  stroke-width: 1.5px;
+		}
+		.shrout {
+		  fill: none;
+		  stroke: black;
+		  stroke-width: 1.5px;
+		}
+		.ask {
+		  fill: none;
+		  stroke: yellow;
+		  stroke-width: 1.5px;
+		}
+		.bid {
+		  fill: none;
+		  stroke: purple;
+		  stroke-width: 1.5px;
+		}
+		.vol {
+		  fill: none;
+		  stroke: orange;
+		  stroke-width: 1.5px;
+		}
+		.dt {
+		  fill: none;
+		  stroke: magenta;
+		  stroke-width: 1.5px;
+		}
+		.numtrd {
+		  fill: none;
+		  stroke: gray;
+		  stroke-width: 1.5px;
+		}
+		.vwretd {
+		  fill: azure;
+		  stroke: blue;
+		  stroke-width: 1.5px;
+		}
+		
+
 		</style>
     </head>
     <body link="blue" alink="blue" vlink="blue"  bgcolor="lightblue">
@@ -493,7 +581,7 @@ dataJson = dataJson + "]}";
 					String key = it.next();
 					String value = similarCompanies.get(key);
 					out.println("<tr>");
-					String date = dataJson;
+					String date = companyDataJsons.get(key);
 					out.println("<td class=\"similar\" data-graph="+date+"><font size=\"+1\">"+key+"</font></td>");
 					out.println("<td></td>");
 					out.println("<td></td>");
