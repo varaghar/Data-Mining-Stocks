@@ -123,6 +123,22 @@
                 <tr></tr>
                 <tr></tr>
                 <tr></tr>
+                                <tr>
+                    <td><font size="+2">Select Method</font></td>
+                    <td></td>
+                    <td></td>
+                    <td>
+                          <select name="mode">
+                          	<option value="0">Harmonic mean</option>
+                          	<option value="1">Weighted running average</option>
+                          	<option value="2">Least squares</option>
+                          </select>
+                    </td>
+                </tr>
+                <tr></tr>
+                <tr></tr>
+                <tr></tr>
+                
                 <tr align="center">
                     <td colspan="2">
                         <input type="submit" value="Analyze Data" name="Analyze Data">

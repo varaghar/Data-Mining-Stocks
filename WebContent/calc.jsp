@@ -19,6 +19,8 @@ String openprc=request.getParameter("openprc");
 String numtrd=request.getParameter("numtrd");
 String vwretd=request.getParameter("vwretd");
 
+String mode=request.getParameter("mode");
+
 final class Stockdata1 {
 	public String ticker;
 	
@@ -221,8 +223,9 @@ final class Similar {
 						sum+=reference;
 						dif+= Math.sqrt(Math.pow(new Float(entry.get(attribute))-reference,2));
 					}
-					if(dif<100){
-						System.out.println(dif);
+					
+					//TRESHOLD
+					if(dif<80*attributes.size()){
 						countOfSimilar--;
 					}
 					
@@ -252,6 +255,7 @@ final class Similar {
 			return false;
 		}
 		
+		//TRESHOLD
 		float percent = (avg1) / 100;
 		return (avg1< avg2+percent && avg1>avg2-percent);
 	}	
@@ -264,10 +268,6 @@ final class Similar {
 		
 		if (mode == 1){
 			return getWeightedMovingAverageForAttribute(stockList, attribute);
-		}
-		
-		if(mode == 2){
-			
 		}
 		
 		return 0;
@@ -425,9 +425,36 @@ final class Similar {
 Map<String, String> similarCompanies = new HashMap<String, String>();
 Similar similar = new Similar();
 List<String> attributes =  new LinkedList<String>();
-attributes.add("bidlo");
+//Check which attributes are examined
+if(bidlo!=null) {
+	attributes.add("bidlo");
+}
+if(askhi!=null) {
+	attributes.add("askhi");
+}
+if(vol!=null) {
+	attributes.add("vol");
+}
+if(ask!=null) {
+	attributes.add("ask");
+}
+if(shrout!=null) {
+	attributes.add("shrout");
+}
+if(openprc!=null) {
+	attributes.add("openprc");
+}
+if(numtrd!=null) {
+	attributes.add("numtrd");
+}
+if(numtrd!=null) {
+	attributes.add("numtrd");
+}
+if(vwretd!=null) {
+	attributes.add("vwretd");
+}
 // attributes.add("ask");
-Map<String,List<Stockdata1>> stockdatas = similar.main("MSFT", "19960603", 60, attributes,2);
+Map<String,List<Stockdata1>> stockdatas = similar.main(ticker, year+month+day, Integer.valueOf(duration), attributes, Integer.valueOf(mode));
 Map<String, String> companyDataJsons = new HashMap<String, String>();
 Set<String> companyKeys = stockdatas.keySet();
 Iterator<String> companyKeysIterator = companyKeys.iterator();
